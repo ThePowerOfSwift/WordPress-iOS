@@ -1,0 +1,58 @@
+version: 2
+jobs:
+  build_and_test:
+    macos:
+      xcode: "10.1.0"
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - wordpress-ios-{{ checksum "Gemfile.lock" }}-{{ checksum "Podfile.lock" }}
+            - wordpress-ios-{{ checksum "Gemfile.lock" }}
+            - wordpress-ios-
+      - run:
+          name: Bundle install
+          command: bundle install --path=vendor/bundle
+      - run:
+          name: CocoaPods Check
+          command: bundle exec pod check && touch .skip_pod_install
+      - run:
+          name: Fetch CocoaPods Specs (if needed)
+          command: test -e .skip_pod_install || curl https://cocoapods-specs.circleci.com/fetch-cocoapods-repo-from-s3.sh | bash -s cf
+      - run:
+          name: Pod Install (if needed)
+          command: test -e .skip_pod_install || bundle exec pod install
+      - save_cache:
+          key: wordpress-ios-{{ checksum "Gemfile.lock" }}-{{ checksum "Podfile.lock" }}
+          paths:
+            - Pods/
+            - vendor/bundle
+      - run:
+          name: Build and run tests
+          command: xcodebuild test -scheme "WordPress" -configuration "Debug" -destination "platform=iOS Simulator,name=iPhone XS,OS=12.1" -workspace "WordPress.xcworkspace"
+  danger:
+    macos:
+      xcode: "10.1.0"
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - wordpress-ios-danger-{{ checksum "Gemfile.lock" }}
+            - wordpress-ios-danger-
+      - run:
+          name: Dependencies
+          command: rake dependencies
+      - save_cache:
+          key: wordpress-ios-danger-{{ checksum "Gemfile.lock" }}
+          paths:
+            - vendor/
+      - run:
+          name: Danger
+          command: bundle exec danger --fail-on-errors=true
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build_and_test
+      - danger

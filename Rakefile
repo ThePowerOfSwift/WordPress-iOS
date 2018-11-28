@@ -14,7 +14,7 @@ desc "Install required dependencies"
 task :dependencies => %w[dependencies:check]
 
 namespace :dependencies do
-  task :check => %w[bundler:check bundle:check pod:check lint:check]
+  task :check => %w[bundler:check bundle:check lint:check]
 
   namespace :bundler do
     task :check do
